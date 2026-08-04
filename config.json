@@ -1,17 +1,17 @@
 {
-  "name": "Pattern Bridge",
-  "shortName": "pattern_bridge",
+  "name": "Meshcentral Bridge",
+  "shortName": "meshcentral_bridge",
   "version": "0.0.1",
   "author": "Joseph",
-  "description": "Forwards MeshCentral device events and telemetry to Pattern.",
+  "description": "Forwards MeshCentral device events and telemetry.",
   "hasAdminPanel": false,
   "homepage": "https://vanellico.net",
-  "changelogUrl": "https://raw.githubusercontent.com/USERNAME/meshcentral-pattern-bridge/main/changelog.md",
-  "configUrl": "https://raw.githubusercontent.com/USERNAME/meshcentral-pattern-bridge/main/config.json",
-  "downloadUrl": "https://github.com/USERNAME/meshcentral-pattern-bridge/archive/refs/heads/main.zip",
+  "changelogUrl": "https://raw.githubusercontent.com/vanellie-j/meshcentral-bridge/main/changelog.md",
+  "configUrl": "https://raw.githubusercontent.com/vanellie-j/meshcentral-bridge/main/config.json",
+  "downloadUrl": "https://github.com/vanellie-j/meshcentral-bridge/archive/refs/heads/main.zip",
   "repository": {
     "type": "git",
-    "url": "https://github.com/USERNAME/meshcentral-pattern-bridge.git"
+    "url": "https://github.com/vanellie-j/meshcentral-bridge.git"
   },
   "meshCentralCompat": ">=1.0.0"
 }
