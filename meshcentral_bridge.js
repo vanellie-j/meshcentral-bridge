@@ -1,19 +1,49 @@
 module.exports.meshcentral_bridge = function (parent) {
     const obj = {};
 
-    function summarizeValue(value) {
+    function shallowShape(value) {
         if (value === null || value === undefined) {
             return value;
         }
 
-        if (typeof value !== 'object') {
-            return value;
+        if (Array.isArray(value)) {
+            return {
+                type: 'array',
+                length: value.length,
+                sampleKeys: value.length > 0 && typeof value[0] === 'object'
+                    ? Object.keys(value[0]).slice(0, 30)
+                    : null
+            };
         }
 
-        return {
-            type: Array.isArray(value) ? 'array' : 'object',
-            keys: Object.keys(value).slice(0, 50)
-        };
+        if (typeof value === 'object') {
+            const result = {};
+
+            for (const key of Object.keys(value).slice(0, 50)) {
+                const child = value[key];
+
+                if (Array.isArray(child)) {
+                    result[key] = {
+                        type: 'array',
+                        length: child.length,
+                        sampleKeys: child.length > 0 && typeof child[0] === 'object'
+                            ? Object.keys(child[0]).slice(0, 30)
+                            : null
+                    };
+                } else if (child !== null && typeof child === 'object') {
+                    result[key] = {
+                        type: 'object',
+                        keys: Object.keys(child).slice(0, 30)
+                    };
+                } else {
+                    result[key] = typeof child;
+                }
+            }
+
+            return result;
+        }
+
+        return typeof value;
     }
 
     obj.server_startup = function () {
@@ -26,34 +56,36 @@ module.exports.meshcentral_bridge = function (parent) {
             JSON.stringify({
                 name: agent?.name ?? null,
                 nodeid: agent?.nodeid ?? null,
-                meshid: agent?.meshid ?? null,
-                remoteaddr: agent?.remoteaddr ?? null,
                 connectTime: agent?.connectTime ?? null
             })
         );
     };
 
     obj.hook_processAgentData = function (data, agent) {
-        console.log(
-            '[meshcentral_bridge] agent data',
-            JSON.stringify({
-                device: {
-                    name: agent?.name ?? null,
-                    nodeid: agent?.nodeid ?? null,
-                    meshid: agent?.meshid ?? null
-                },
-                message: {
-                    action: data?.action ?? null,
-                    type: data?.type ?? null,
-                    keys: (
-                        data !== null &&
-                        typeof data === 'object'
-                    ) ? Object.keys(data) : null,
-                    value: summarizeValue(data?.value),
-                    data: summarizeValue(data?.data)
-                }
-            })
-        );
+        if (data?.action === 'sysinfo') {
+            console.log(
+                '[meshcentral_bridge] sysinfo',
+                JSON.stringify({
+                    device: agent?.name ?? null,
+                    time: data?.data?.time ?? null,
+                    hardware: shallowShape(data?.data?.hardware)
+                })
+            );
+
+            return;
+        }
+
+        if (data?.action === 'coreinfo') {
+            console.log(
+                '[meshcentral_bridge] coreinfo',
+                JSON.stringify({
+                    device: agent?.name ?? null,
+                    osdesc: data?.osdesc ?? null,
+                    lastbootuptime: data?.lastbootuptime ?? null,
+                    caps: data?.caps ?? null
+                })
+            );
+        }
     };
 
     return obj;
