@@ -50,6 +50,14 @@ module.exports.meshcentral_bridge = function (parent) {
         };
     }
 
+    function sanitizeWindowsOsInfo(osinfo) {
+        if (!osinfo || typeof osinfo !== 'object') return null;
+
+        return {
+            architecture: osinfo.OSArchitecture ?? null
+        };
+    }
+
     function sanitizeWindowsMemory(memory) {
         if (!Array.isArray(memory)) return [];
 
@@ -229,7 +237,7 @@ module.exports.meshcentral_bridge = function (parent) {
         const body = JSON.stringify({
             event,
             source: 'meshcentral_bridge',
-            version: '0.0.12',
+            version: '0.0.13',
             ...payload
         });
         const client = webhookUrl.protocol === 'https:'
@@ -385,6 +393,7 @@ module.exports.meshcentral_bridge = function (parent) {
             };
 
             if (platform === 'windows') {
+                payload.os = sanitizeWindowsOsInfo(hardware.windows?.osinfo);
                 payload.memory = sanitizeWindowsMemory(hardware.windows?.memory);
                 payload.cpu = sanitizeWindowsCpu(hardware.windows?.cpu);
                 payload.gpu = sanitizeWindowsGpu(hardware.windows?.gpu);
