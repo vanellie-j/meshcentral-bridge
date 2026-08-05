@@ -203,13 +203,13 @@ module.exports.meshcentral_bridge = function (parent) {
         }));
     }
 
-    function postTelemetry(payload) {
+    function postEvent(event, payload) {
         if (!webhookUrl) return;
 
         const body = JSON.stringify({
-            event: 'telemetry',
+            event,
             source: 'meshcentral_bridge',
-            version: '0.0.10',
+            version: '0.0.11',
             ...payload
         });
         const client = webhookUrl.protocol === 'https:'
@@ -234,6 +234,7 @@ module.exports.meshcentral_bridge = function (parent) {
                 console.log(
                     '[meshcentral_bridge] webhook-response-error',
                     JSON.stringify({
+                        event,
                         device: payload.device,
                         status: response.statusCode ?? null
                     })
@@ -249,6 +250,7 @@ module.exports.meshcentral_bridge = function (parent) {
             console.log(
                 '[meshcentral_bridge] webhook-request-error',
                 JSON.stringify({
+                    event,
                     device: payload.device,
                     error: error instanceof Error ? error.message : String(error)
                 })
@@ -380,34 +382,52 @@ module.exports.meshcentral_bridge = function (parent) {
                 JSON.stringify(payload)
             );
 
+            const webhookPayload = { ...payload };
+            delete webhookPayload.nodeid;
+            postEvent('inventory', webhookPayload);
+
             return;
         }
 
         if (data?.action === 'coreinfo') {
+            const payload = {
+                device: agent?.name ?? null,
+                nodeid: agent?.nodeid ?? null,
+                time: Date.now(),
+                osdesc: data?.osdesc ?? null,
+                lastbootuptime: data?.lastbootuptime ?? null,
+                caps: data?.caps ?? null
+            };
+
             console.log(
                 '[meshcentral_bridge] coreinfo',
-                JSON.stringify({
-                    device: agent?.name ?? null,
-                    nodeid: agent?.nodeid ?? null,
-                    osdesc: data?.osdesc ?? null,
-                    lastbootuptime: data?.lastbootuptime ?? null,
-                    caps: data?.caps ?? null
-                })
+                JSON.stringify(payload)
             );
+
+            const webhookPayload = { ...payload };
+            delete webhookPayload.nodeid;
+            postEvent('coreinfo', webhookPayload);
 
             return;
         }
 
         if (data?.action === 'battery') {
+            const payload = {
+                device: agent?.name ?? null,
+                nodeid: agent?.nodeid ?? null,
+                time: Date.now(),
+                state: data?.state ?? null,
+                level: data?.level ?? null
+            };
+
             console.log(
                 '[meshcentral_bridge] battery',
-                JSON.stringify({
-                    device: agent?.name ?? null,
-                    nodeid: agent?.nodeid ?? null,
-                    state: data?.state ?? null,
-                    level: data?.level ?? null
-                })
+                JSON.stringify(payload)
             );
+
+            const webhookPayload = { ...payload };
+            delete webhookPayload.nodeid;
+            postEvent('battery', webhookPayload);
 
             return;
         }
@@ -425,7 +445,7 @@ module.exports.meshcentral_bridge = function (parent) {
                 '[meshcentral_bridge] telemetry',
                 JSON.stringify(payload)
             );
-            postTelemetry(payload);
+            postEvent('telemetry', payload);
 
             return;
         }
