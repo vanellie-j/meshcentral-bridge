@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.11
+
+- Added private webhook delivery for sanitized inventory, core info, and battery events alongside telemetry.
+- Added event names to safe webhook delivery errors for easier diagnosis.
+- Excluded MeshCentral node identifiers from every webhook payload while preserving existing journal output.
+- Kept explicit inventory allowlists and avoided forwarding raw agent messages.
+
 ## 0.0.10
 
 - Added optional POST delivery of normalized telemetry to an n8n webhook configured with `MESHCENTRAL_BRIDGE_N8N_WEBHOOK_URL`.
