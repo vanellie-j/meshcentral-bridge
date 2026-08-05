@@ -141,31 +141,49 @@ module.exports.meshcentral_bridge = function (parent) {
         }));
     }
 
-    function sanitizeTelemetry(value, depth = 0) {
-        if (value === null || value === undefined) return value ?? null;
-        if (depth > 4) return null;
+    function toFiniteNumber(value) {
+        if (value === null || value === undefined || value === '') return null;
 
-        if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'string') {
-            return value;
-        }
+        const number = Number(value);
+        return Number.isFinite(number) ? number : null;
+    }
 
-        if (Array.isArray(value)) {
-            return value.slice(0, 128).map((item) => sanitizeTelemetry(item, depth + 1));
-        }
+    function normalizeCpu(cpu) {
+        const cores = Array.isArray(cpu?.cpus)
+            ? cpu.cpus
+                .slice(0, 128)
+                .map(toFiniteNumber)
+                .filter((value) => value !== null)
+            : [];
 
-        if (typeof value === 'object') {
-            const result = {};
-            const blockedKey = /(password|recovery|secret|token|private|credential|key)/i;
+        return {
+            total_percent: toFiniteNumber(cpu?.total),
+            cores_percent: cores
+        };
+    }
 
-            for (const key of Object.keys(value).slice(0, 128)) {
-                if (blockedKey.test(key)) continue;
-                result[key] = sanitizeTelemetry(value[key], depth + 1);
-            }
+    function normalizeMemory(memory) {
+        const hasWindowsBytes = memory?.MemTotal !== undefined || memory?.MemFree !== undefined;
+        const unitMultiplier = hasWindowsBytes ? 1 : 1024;
+        const total = toFiniteNumber(hasWindowsBytes ? memory?.MemTotal : memory?.total);
+        const free = toFiniteNumber(hasWindowsBytes ? memory?.MemFree : memory?.free);
 
-            return result;
-        }
+        return {
+            total_bytes: total === null ? null : total * unitMultiplier,
+            free_bytes: free === null ? null : free * unitMultiplier,
+            used_percent: toFiniteNumber(memory?.percentConsumed)
+        };
+    }
 
-        return null;
+    function normalizeThermals(thermals) {
+        if (!Array.isArray(thermals)) return [];
+
+        return thermals.slice(0, 128).map((thermal) => ({
+            name: typeof thermal?.InstanceName === 'string'
+                ? thermal.InstanceName
+                : null,
+            celsius: toFiniteNumber(thermal?.CurrentTemperature)
+        }));
     }
 
     function requestCpuInfo(agent) {
@@ -315,11 +333,10 @@ module.exports.meshcentral_bridge = function (parent) {
                 '[meshcentral_bridge] telemetry',
                 JSON.stringify({
                     device: agent?.name ?? null,
-                    nodeid: agent?.nodeid ?? null,
                     time: Date.now(),
-                    cpu: sanitizeTelemetry(data?.cpu),
-                    memory: sanitizeTelemetry(data?.memory),
-                    thermals: sanitizeTelemetry(data?.thermals)
+                    cpu: normalizeCpu(data?.cpu),
+                    memory: normalizeMemory(data?.memory),
+                    thermals: normalizeThermals(data?.thermals)
                 })
             );
 
