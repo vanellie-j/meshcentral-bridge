@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.13
+
+- Added the Windows OS architecture from MeshCentral's existing safe system inventory.
+- Continued excluding network interfaces, AMT details, product UUIDs, and raw agent messages.
+- Preserved private webhook delivery, safe summary logging, and the 60-second telemetry sampler.
+
 ## 0.0.12
 
 - Added canonical system serial, firmware date, memory type, memory form factor, GPU resolution, and future-compatible CPU topology fields to the private inventory webhook.
