@@ -27,6 +27,11 @@ module.exports.meshcentral_bridge = function (parent) {
 
         return {
             bios_vendor: identifiers.bios_vendor ?? null,
+            firmware_date: identifiers.bios_date ?? null,
+            serial: identifiers.chassis_serial ??
+                identifiers.bios_serial ??
+                identifiers.board_serial ??
+                null,
             bios_version: identifiers.bios_version ?? null,
             bios_mode: identifiers.bios_mode ?? null,
             board_name: identifiers.board_name ?? null,
@@ -54,6 +59,9 @@ module.exports.meshcentral_bridge = function (parent) {
             capacity: item?.Capacity ?? null,
             configured_clock_speed: item?.ConfiguredClockSpeed ?? null,
             speed: item?.Speed ?? null,
+            memory_type: item?.MemoryType ?? null,
+            smbios_memory_type: item?.SMBIOSMemoryType ?? null,
+            form_factor: item?.FormFactor ?? null,
             manufacturer: item?.Manufacturer ?? null,
             part_number: item?.PartNumber?.trim?.() ?? item?.PartNumber ?? null
         }));
@@ -66,7 +74,19 @@ module.exports.meshcentral_bridge = function (parent) {
             manufacturer: item?.Manufacturer ?? null,
             name: item?.Name ?? null,
             max_clock_speed: item?.MaxClockSpeed ?? null,
+            cores: item?.NumberOfCores ?? null,
+            logical_processors: item?.NumberOfLogicalProcessors ?? null,
             socket: item?.SocketDesignation ?? null
+        }));
+    }
+
+    function sanitizeWindowsGpu(gpu) {
+        if (!Array.isArray(gpu)) return [];
+
+        return gpu.map((item) => ({
+            name: item?.Name ?? null,
+            current_horizontal_resolution: item?.CurrentHorizontalResolution ?? null,
+            current_vertical_resolution: item?.CurrentVerticalResolution ?? null
         }));
     }
 
@@ -209,7 +229,7 @@ module.exports.meshcentral_bridge = function (parent) {
         const body = JSON.stringify({
             event,
             source: 'meshcentral_bridge',
-            version: '0.0.11',
+            version: '0.0.12',
             ...payload
         });
         const client = webhookUrl.protocol === 'https:'
@@ -367,6 +387,7 @@ module.exports.meshcentral_bridge = function (parent) {
             if (platform === 'windows') {
                 payload.memory = sanitizeWindowsMemory(hardware.windows?.memory);
                 payload.cpu = sanitizeWindowsCpu(hardware.windows?.cpu);
+                payload.gpu = sanitizeWindowsGpu(hardware.windows?.gpu);
                 payload.drives = sanitizeWindowsDrives(hardware.windows?.drives);
                 payload.volumes = sanitizeWindowsVolumes(hardware.windows?.volumes);
                 payload.battery = sanitizeBattery(hardware.battery);
@@ -379,7 +400,20 @@ module.exports.meshcentral_bridge = function (parent) {
 
             console.log(
                 '[meshcentral_bridge] inventory',
-                JSON.stringify(payload)
+                JSON.stringify({
+                    device: payload.device,
+                    time: payload.time,
+                    platform: payload.platform,
+                    cpu_count: Array.isArray(payload.cpu) ? payload.cpu.length : null,
+                    gpu_count: Array.isArray(payload.gpu) ? payload.gpu.length : null,
+                    drive_count: Array.isArray(payload.drives) ? payload.drives.length : null,
+                    memory_module_count: Array.isArray(payload.memory) ? payload.memory.length : null,
+                    volume_count: Array.isArray(payload.volumes)
+                        ? payload.volumes.length
+                        : payload.volumes && typeof payload.volumes === 'object'
+                            ? Object.keys(payload.volumes).length
+                            : null
+                })
             );
 
             const webhookPayload = { ...payload };
