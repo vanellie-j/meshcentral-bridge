@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.10
+
+- Added optional POST delivery of normalized telemetry to an n8n webhook configured with `MESHCENTRAL_BRIDGE_N8N_WEBHOOK_URL`.
+- Added optional bearer authentication through `MESHCENTRAL_BRIDGE_N8N_TOKEN` without logging the token or webhook URL.
+- Added a 10-second delivery timeout and safe error summaries containing only the device name, HTTP status, or error message.
+- Kept local telemetry logging and the existing immediate and 60-second sampling behavior.
+
 ## 0.0.9
 
 - Normalized CPU telemetry to platform-neutral `total_percent` and `cores_percent` fields.
