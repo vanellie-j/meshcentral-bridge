@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.9
+
+- Normalized CPU telemetry to platform-neutral `total_percent` and `cores_percent` fields.
+- Normalized Windows byte values and Linux KiB values to `total_bytes` and `free_bytes`, with `used_percent` shared across platforms.
+- Reduced thermal telemetry to explicit `name` and `celsius` fields.
+- Removed the agent node identifier from telemetry logs and retained the existing safe inventory, core info, battery, and 60-second sampling behavior.
+
 ## 0.0.8
 
 - Added safe handling for `msg/cpuinfo` responses, logging only CPU, memory, and thermal telemetry.
