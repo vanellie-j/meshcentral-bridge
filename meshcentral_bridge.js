@@ -2,8 +2,25 @@ module.exports.meshcentral_bridge = function (parent) {
     const obj = {};
     const seenActions = new Set();
     const sampleIntervalMs = 60000;
+    const webhookTimeoutMs = 10000;
+    const webhookUrlText = process.env.MESHCENTRAL_BRIDGE_N8N_WEBHOOK_URL?.trim() ?? '';
+    const webhookToken = process.env.MESHCENTRAL_BRIDGE_N8N_TOKEN?.trim() ?? '';
+    let webhookUrl = null;
+    let webhookConfigError = null;
     let serverRef = null;
     let samplerTimer = null;
+
+    if (webhookUrlText) {
+        try {
+            webhookUrl = new URL(webhookUrlText);
+
+            if (webhookUrl.protocol !== 'http:' && webhookUrl.protocol !== 'https:') {
+                throw new Error('webhook URL must use http or https');
+            }
+        } catch (error) {
+            webhookConfigError = error instanceof Error ? error.message : String(error);
+        }
+    }
 
     function sanitizeIdentifiers(identifiers) {
         if (!identifiers || typeof identifiers !== 'object') return null;
@@ -186,6 +203,61 @@ module.exports.meshcentral_bridge = function (parent) {
         }));
     }
 
+    function postTelemetry(payload) {
+        if (!webhookUrl) return;
+
+        const body = JSON.stringify({
+            event: 'telemetry',
+            source: 'meshcentral_bridge',
+            version: '0.0.10',
+            ...payload
+        });
+        const client = webhookUrl.protocol === 'https:'
+            ? require('https')
+            : require('http');
+        const headers = {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body)
+        };
+
+        if (webhookToken) {
+            headers.Authorization = `Bearer ${webhookToken}`;
+        }
+
+        const request = client.request(webhookUrl, {
+            method: 'POST',
+            headers
+        }, (response) => {
+            response.resume();
+
+            if (response.statusCode < 200 || response.statusCode >= 300) {
+                console.log(
+                    '[meshcentral_bridge] webhook-response-error',
+                    JSON.stringify({
+                        device: payload.device,
+                        status: response.statusCode ?? null
+                    })
+                );
+            }
+        });
+
+        request.setTimeout(webhookTimeoutMs, () => {
+            request.destroy(new Error('webhook request timed out'));
+        });
+
+        request.on('error', (error) => {
+            console.log(
+                '[meshcentral_bridge] webhook-request-error',
+                JSON.stringify({
+                    device: payload.device,
+                    error: error instanceof Error ? error.message : String(error)
+                })
+            );
+        });
+
+        request.end(body);
+    }
+
     function requestCpuInfo(agent) {
         if (!agent || typeof agent.send !== 'function') return;
 
@@ -246,6 +318,18 @@ module.exports.meshcentral_bridge = function (parent) {
 
     obj.server_startup = function () {
         console.log('[meshcentral_bridge] server_startup');
+
+        if (webhookConfigError) {
+            console.log(
+                '[meshcentral_bridge] webhook-config-error',
+                JSON.stringify({ error: webhookConfigError })
+            );
+        } else {
+            console.log(
+                '[meshcentral_bridge] webhook',
+                JSON.stringify({ enabled: webhookUrl !== null })
+            );
+        }
     };
 
     obj.hook_agentCoreIsStable = function (agent, server) {
@@ -329,16 +413,19 @@ module.exports.meshcentral_bridge = function (parent) {
         }
 
         if (data?.action === 'msg' && data?.type === 'cpuinfo') {
+            const payload = {
+                device: agent?.name ?? null,
+                time: Date.now(),
+                cpu: normalizeCpu(data?.cpu),
+                memory: normalizeMemory(data?.memory),
+                thermals: normalizeThermals(data?.thermals)
+            };
+
             console.log(
                 '[meshcentral_bridge] telemetry',
-                JSON.stringify({
-                    device: agent?.name ?? null,
-                    time: Date.now(),
-                    cpu: normalizeCpu(data?.cpu),
-                    memory: normalizeMemory(data?.memory),
-                    thermals: normalizeThermals(data?.thermals)
-                })
+                JSON.stringify(payload)
             );
+            postTelemetry(payload);
 
             return;
         }
