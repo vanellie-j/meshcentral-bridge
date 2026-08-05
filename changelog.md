@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.7
+
+- Added explicit safe logging for live battery state and level events.
+- Recognized MeshCentral `unknown/ifinfo` network interface events without logging their payload contents.
+- Continued one-time shallow discovery logging for previously unseen action/type pairs.
+
 ## 0.0.6
 
 - Replaced raw sysinfo logging with an explicit safe-field inventory payload.
