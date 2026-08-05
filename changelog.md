@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.12
+
+- Added canonical system serial, firmware date, memory type, memory form factor, GPU resolution, and future-compatible CPU topology fields to the private inventory webhook.
+- Kept serial values out of journal output by replacing full inventory logging with non-sensitive device and item counts.
+- Continued explicit allowlisting; raw agent messages, product UUIDs, network data, and recovery secrets remain excluded.
+- Preserved existing current-state events and the 60-second telemetry sampler.
+
 ## 0.0.11
 
 - Added private webhook delivery for sanitized inventory, core info, and battery events alongside telemetry.
