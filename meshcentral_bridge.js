@@ -1,6 +1,9 @@
 module.exports.meshcentral_bridge = function (parent) {
     const obj = {};
     const seenActions = new Set();
+    const sampleIntervalMs = 60000;
+    let serverRef = null;
+    let samplerTimer = null;
 
     function sanitizeIdentifiers(identifiers) {
         if (!identifiers || typeof identifiers !== 'object') return null;
@@ -138,6 +141,64 @@ module.exports.meshcentral_bridge = function (parent) {
         }));
     }
 
+    function sanitizeTelemetry(value, depth = 0) {
+        if (value === null || value === undefined) return value ?? null;
+        if (depth > 4) return null;
+
+        if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'string') {
+            return value;
+        }
+
+        if (Array.isArray(value)) {
+            return value.slice(0, 128).map((item) => sanitizeTelemetry(item, depth + 1));
+        }
+
+        if (typeof value === 'object') {
+            const result = {};
+            const blockedKey = /(password|recovery|secret|token|private|credential|key)/i;
+
+            for (const key of Object.keys(value).slice(0, 128)) {
+                if (blockedKey.test(key)) continue;
+                result[key] = sanitizeTelemetry(value[key], depth + 1);
+            }
+
+            return result;
+        }
+
+        return null;
+    }
+
+    function requestCpuInfo(agent) {
+        if (!agent || typeof agent.send !== 'function') return;
+
+        try {
+            agent.send(JSON.stringify({ action: 'msg', type: 'cpuinfo' }));
+        } catch (error) {
+            console.log(
+                '[meshcentral_bridge] cpuinfo-request-error',
+                JSON.stringify({
+                    device: agent?.name ?? null,
+                    nodeid: agent?.nodeid ?? null,
+                    error: error instanceof Error ? error.message : String(error)
+                })
+            );
+        }
+    }
+
+    function startSampler(server) {
+        if (server) serverRef = server;
+        if (samplerTimer !== null) return;
+
+        samplerTimer = setInterval(() => {
+            const agents = serverRef?.wsagents;
+            if (!agents || typeof agents !== 'object') return;
+
+            for (const agent of Object.values(agents)) {
+                requestCpuInfo(agent);
+            }
+        }, sampleIntervalMs);
+    }
+
     function summarizeUnknownAction(data, agent) {
         const action = data?.action ?? 'unknown';
         const type = data?.type ?? null;
@@ -169,7 +230,10 @@ module.exports.meshcentral_bridge = function (parent) {
         console.log('[meshcentral_bridge] server_startup');
     };
 
-    obj.hook_agentCoreIsStable = function (agent) {
+    obj.hook_agentCoreIsStable = function (agent, server) {
+        startSampler(server);
+        requestCpuInfo(agent);
+
         console.log(
             '[meshcentral_bridge] agent stable',
             JSON.stringify({
@@ -180,7 +244,9 @@ module.exports.meshcentral_bridge = function (parent) {
         );
     };
 
-    obj.hook_processAgentData = function (data, agent) {
+    obj.hook_processAgentData = function (data, agent, server) {
+        if (server) serverRef = server;
+
         if (data?.action === 'sysinfo') {
             const hardware = data?.data?.hardware ?? {};
             const platform = hardware.windows ? 'windows' :
@@ -244,7 +310,23 @@ module.exports.meshcentral_bridge = function (parent) {
             return;
         }
 
-        if (data?.action === 'unknown' && data?.type === 'ifinfo') return;
+        if (data?.action === 'msg' && data?.type === 'cpuinfo') {
+            console.log(
+                '[meshcentral_bridge] telemetry',
+                JSON.stringify({
+                    device: agent?.name ?? null,
+                    nodeid: agent?.nodeid ?? null,
+                    time: Date.now(),
+                    cpu: sanitizeTelemetry(data?.cpu),
+                    memory: sanitizeTelemetry(data?.memory),
+                    thermals: sanitizeTelemetry(data?.thermals)
+                })
+            );
+
+            return;
+        }
+
+        if (data?.type === 'ifinfo') return;
         if (data?.action === 'smbios' || data?.action === 'sessions') return;
 
         summarizeUnknownAction(data, agent);
