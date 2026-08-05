@@ -1,7 +1,7 @@
 {
   "name": "Meshcentral Bridge",
   "shortName": "meshcentral_bridge",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "author": "Joseph",
   "description": "Forwards MeshCentral device events and telemetry.",
   "hasAdminPanel": false,
