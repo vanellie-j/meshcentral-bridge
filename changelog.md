@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.0.8
+
+- Added safe handling for `msg/cpuinfo` responses, logging only CPU, memory, and thermal telemetry.
+- Added a 60-second sampler that requests `cpuinfo` from currently connected MeshCentral agents.
+- Added an immediate `cpuinfo` request when an agent core becomes stable.
+- Reused MeshCentral's own agent `send()` path rather than emulating a browser session.
+- Suppressed all `ifinfo` payloads from discovery logging regardless of action value.
+
 ## 0.0.7
 
 - Added explicit safe logging for live battery state and level events.
