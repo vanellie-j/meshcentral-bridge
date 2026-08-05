@@ -230,6 +230,21 @@ module.exports.meshcentral_bridge = function (parent) {
             return;
         }
 
+        if (data?.action === 'battery') {
+            console.log(
+                '[meshcentral_bridge] battery',
+                JSON.stringify({
+                    device: agent?.name ?? null,
+                    nodeid: agent?.nodeid ?? null,
+                    state: data?.state ?? null,
+                    level: data?.level ?? null
+                })
+            );
+
+            return;
+        }
+
+        if (data?.action === 'unknown' && data?.type === 'ifinfo') return;
         if (data?.action === 'smbios' || data?.action === 'sessions') return;
 
         summarizeUnknownAction(data, agent);
